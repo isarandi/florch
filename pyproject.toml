@@ -22,7 +22,8 @@ dependencies = [
     'wandb',
     'torch',
     'torchdata',
-    'more-itertools'
+    'more-itertools',
+    'simplepyutils',
 ]
 
 classifiers = [
