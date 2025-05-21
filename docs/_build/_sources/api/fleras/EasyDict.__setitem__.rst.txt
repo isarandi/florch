@@ -1,0 +1,8 @@
+__setitem__
+===========
+
+.. py:attribute:: fleras.EasyDict.__setitem__
+
+   Set self[key] to value.
+
+.. footbibliography::

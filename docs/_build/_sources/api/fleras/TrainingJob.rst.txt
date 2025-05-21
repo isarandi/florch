@@ -1,0 +1,10 @@
+TrainingJob
+===========
+
+.. py:class:: fleras.TrainingJob(wandb_project, wandb_config, logdir, init_path, load_path, training_steps, stop_step, grad_accum_steps, force_grad_accum, loss_scale, dynamic_loss_scale, ema_momentum, finetune_in_inference_mode, validate_period, checkpoint_dir, checkpoint_period, multi_gpu, seed, n_completed_steps=None, workers=None, parallel_build_data=True)
+
+   Encapsulates the input pipeline, model construction, checkpointing and training.
+
+
+
+.. footbibliography::

@@ -1,0 +1,26 @@
+fleras.fused_renorm
+===================
+
+.. py:module:: fleras.fused_renorm
+
+.. autoapi-nested-parse::
+
+   The V2 implementation of Normalization layers.
+
+
+
+Classes
+-------
+
+.. toctree::
+   :hidden:
+
+   /api/fleras/fused_renorm/BatchNormalization
+
+.. autoapisummary::
+
+   fleras.fused_renorm.BatchNormalization
+
+
+
+.. footbibliography::

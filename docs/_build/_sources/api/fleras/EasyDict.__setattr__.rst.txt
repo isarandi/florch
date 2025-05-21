@@ -1,0 +1,9 @@
+__setattr__
+===========
+
+.. py:method:: fleras.EasyDict.__setattr__(name, value)
+
+   Implement setattr(self, name, value).
+
+
+.. footbibliography::

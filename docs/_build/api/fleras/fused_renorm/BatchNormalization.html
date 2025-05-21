@@ -1,0 +1,542 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>BatchNormalization &#8212; Fleras</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!-- 
+    this give us a css class that will be invisible only if js is disabled 
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../_static/styles/theme.css?digest=26a4bc78f4c0ddb94549" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=26a4bc78f4c0ddb94549" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/my_theme.css?v=306a86f3" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../../../_static/scripts/fontawesome.js?digest=26a4bc78f4c0ddb94549"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=26a4bc78f4c0ddb94549" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=26a4bc78f4c0ddb94549" />
+
+    <script src="../../../_static/documentation_options.js?v=683873e3"></script>
+    <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'api/fleras/fused_renorm/BatchNormalization';</script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="next" title="TrainingJob" href="../TrainingJob.html" />
+    <link rel="prev" title="fleras.fused_renorm" href="index.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">Fleras</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../../index.html">
+    API Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../../index.html">
+    API Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../index.html">fleras</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2 current active has-children"><a class="reference internal" href="index.html">fleras.fused_renorm</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l3 current active"><a class="current reference internal" href="#">BatchNormalization</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../TrainingJob.html">TrainingJob</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../EasyDict.html">EasyDict</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../EasyDict.__setattr__.html">__setattr__</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../EasyDict.__setitem__.html">__setitem__</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../EasyDict.update.html">update</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../EasyDict.pop.html">pop</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../../index.html" class="nav-link">API Reference</a></li>
+    
+    
+    <li class="breadcrumb-item"><a href="../index.html" class="nav-link">fleras</a></li>
+    
+    
+    <li class="breadcrumb-item"><a href="index.html" class="nav-link">fleras.fused_renorm</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">BatchNormalization</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="batchnormalization">
+<h1>BatchNormalization<a class="headerlink" href="#batchnormalization" title="Link to this heading">#</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="fleras.fused_renorm.BatchNormalization">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">fleras.fused_renorm.</span></span><span class="sig-name descname"><span class="pre">BatchNormalization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">momentum</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.99</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epsilon</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">center</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beta_initializer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'zeros'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gamma_initializer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ones'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">moving_mean_initializer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'zeros'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">moving_variance_initializer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ones'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beta_regularizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gamma_regularizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beta_constraint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gamma_constraint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">renorm_clipping</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trainable</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#fleras.fused_renorm.BatchNormalization" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">tensorflow.keras.layers.Layer</span></code></p>
+<p>Layer that normalizes its inputs.</p>
+<p>Batch normalization applies a transformation that maintains the mean output
+close to 0 and the output standard deviation close to 1.</p>
+<p>Importantly, batch normalization works differently during training and
+during inference.</p>
+<p><strong>During training</strong> (i.e. when using <cite>fit()</cite> or when calling the layer/model
+with the argument <cite>training=True</cite>), the layer normalizes its output using
+the mean and standard deviation of the current batch of inputs. That is to
+say, for each channel being normalized, the layer returns
+<cite>gamma * (batch - mean(batch)) / sqrt(var(batch) + epsilon) + beta</cite>, where:</p>
+<ul class="simple">
+<li><p><cite>epsilon</cite> is small constant (configurable as part of the constructor</p></li>
+</ul>
+<p>arguments)
+- <cite>gamma</cite> is a learned scaling factor (initialized as 1), which
+can be disabled by passing <cite>scale=False</cite> to the constructor.
+- <cite>beta</cite> is a learned offset factor (initialized as 0), which
+can be disabled by passing <cite>center=False</cite> to the constructor.</p>
+<p><strong>During inference</strong> (i.e. when using <cite>evaluate()</cite> or <cite>predict()</cite>) or when
+calling the layer/model with the argument <cite>training=False</cite> (which is the
+default), the layer normalizes its output using a moving average of the
+mean and standard deviation of the batches it has seen during training. That
+is to say, it returns
+<cite>gamma * (batch - self.moving_mean) / sqrt(self.moving_var+epsilon) + beta</cite>.</p>
+<p><cite>self.moving_mean</cite> and <cite>self.moving_var</cite> are non-trainable variables that
+are updated each time the layer in called in training mode, as such:</p>
+<ul class="simple">
+<li><p><cite>moving_mean = moving_mean * momentum + mean(batch) * (1 - momentum)</cite></p></li>
+<li><p><cite>moving_var = moving_var * momentum + var(batch) * (1 - momentum)</cite></p></li>
+</ul>
+<p>As such, the layer will only normalize its inputs during inference
+<em>after having been trained on data that has similar statistics as the
+inference data</em>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>axis</strong> – Integer or a list of integers, the axis that should be normalized
+(typically the features axis). For instance, after a <cite>Conv2D</cite> layer with
+<cite>data_format=”channels_first”</cite>, set <cite>axis=1</cite> in <cite>BatchNormalization</cite>.</p></li>
+<li><p><strong>momentum</strong> – Momentum for the moving average.</p></li>
+<li><p><strong>epsilon</strong> – Small float added to variance to avoid dividing by zero.</p></li>
+<li><p><strong>center</strong> – If True, add offset of <cite>beta</cite> to normalized tensor. If False,
+<cite>beta</cite> is ignored.</p></li>
+<li><p><strong>scale</strong> – If True, multiply by <cite>gamma</cite>. If False, <cite>gamma</cite> is not used. When
+the next layer is linear (also e.g. <cite>nn.relu</cite>), this can be disabled
+since the scaling will be done by the next layer.</p></li>
+<li><p><strong>beta_initializer</strong> – Initializer for the beta weight.</p></li>
+<li><p><strong>gamma_initializer</strong> – Initializer for the gamma weight.</p></li>
+<li><p><strong>moving_mean_initializer</strong> – Initializer for the moving mean.</p></li>
+<li><p><strong>moving_variance_initializer</strong> – Initializer for the moving variance.</p></li>
+<li><p><strong>beta_regularizer</strong> – Optional regularizer for the beta weight.</p></li>
+<li><p><strong>gamma_regularizer</strong> – Optional regularizer for the gamma weight.</p></li>
+<li><p><strong>beta_constraint</strong> – Optional constraint for the beta weight.</p></li>
+<li><p><strong>gamma_constraint</strong> – Optional constraint for the gamma weight.</p></li>
+<li><p><strong>renorm_clipping</strong> – A dictionary that may map keys ‘rmax’, ‘rmin’, ‘dmax’ to
+scalar <cite>Tensors</cite> used to clip the renorm correction. The correction <cite>(r,
+d)</cite> is used as <cite>corrected_value = normalized_value * r + d</cite>, with <cite>r</cite>
+clipped to [rmin, rmax], and <cite>d</cite> to [-dmax, dmax]. Missing rmax, rmin,
+dmax are set to inf, 0, inf, respectively.</p></li>
+<li><p><strong>renorm_momentum</strong> – Momentum used to update the moving means and standard
+deviations with renorm. Unlike <cite>momentum</cite>, this affects training and
+should be neither too small (which would add noise) nor too large (which
+would give stale estimates). Note that <cite>momentum</cite> is still applied to
+get the means and variances for inference.</p></li>
+<li><p><strong>trainable</strong> – Boolean, if <cite>True</cite> the variables will be marked as trainable.</p></li>
+</ul>
+</dd>
+</dl>
+<dl>
+<dt>Call arguments:</dt><dd><p>inputs: Input tensor (of any rank).
+training: Python boolean indicating whether the layer should behave in</p>
+<blockquote>
+<div><p>training mode or in inference mode.
+- <cite>training=True</cite>: The layer will normalize its inputs using the mean</p>
+<blockquote>
+<div><p>and variance of the current batch of inputs.</p>
+</div></blockquote>
+<ul class="simple">
+<li><p><cite>training=False</cite>: The layer will normalize its inputs using the mean
+and variance of its moving statistics, learned during training.</p></li>
+</ul>
+</div></blockquote>
+<dl class="simple">
+<dt>mask: Binary tensor of shape broadcastable to <cite>inputs</cite> tensor, indicating</dt><dd><p>the positions for which the mean and variance should be computed.</p>
+</dd>
+</dl>
+</dd>
+<dt>Input shape: Arbitrary. Use the keyword argument <cite>input_shape</cite> (tuple of</dt><dd><p>integers, does not include the samples axis) when using this layer as the
+first layer in a model.</p>
+</dd>
+</dl>
+<p>Output shape: Same shape as input.</p>
+<dl class="simple">
+<dt>Reference:</dt><dd><ul class="simple">
+<li><p>[Ioffe and Szegedy, 2015](<a class="reference external" href="https://arxiv.org/abs/1502.03167">https://arxiv.org/abs/1502.03167</a>).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="index.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">fleras.fused_renorm</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="../TrainingJob.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">TrainingJob</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#fleras.fused_renorm.BatchNormalization"><code class="docutils literal notranslate"><span class="pre">BatchNormalization</span></code></a></li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  <div class="tocsection sourcelink">
+    <a href="../../../_sources/api/fleras/fused_renorm/BatchNormalization.rst.txt">
+      <i class="fa-solid fa-file-lines"></i> Show Source
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../../_static/scripts/bootstrap.js?digest=26a4bc78f4c0ddb94549"></script>
+<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=26a4bc78f4c0ddb94549"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2024, István Sárándi.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.16.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

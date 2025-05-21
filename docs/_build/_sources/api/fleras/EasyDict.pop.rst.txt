@@ -1,0 +1,12 @@
+pop
+===
+
+.. py:method:: fleras.EasyDict.pop(k, d=None)
+
+   D.pop(k[,d]) -> v, remove specified key and return the corresponding value.
+
+   If the key is not found, return the default if given; otherwise,
+   raise a KeyError.
+
+
+.. footbibliography::

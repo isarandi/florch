@@ -1,0 +1,37 @@
+fleras
+======
+
+.. py:module:: fleras
+
+.. autoapi-nested-parse::
+
+   Fleras helps make Keras more flexible.
+
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /api/fleras/fused_renorm/index
+
+
+Classes
+-------
+
+.. toctree::
+   :hidden:
+
+   /api/fleras/TrainingJob
+   /api/fleras/EasyDict
+
+.. autoapisummary::
+
+   fleras.TrainingJob
+   fleras.EasyDict
+
+
+
+.. footbibliography::
