@@ -6,6 +6,7 @@ Usage:
 """
 
 import argparse
+import os.path as osp
 import shutil
 import subprocess
 import sys
@@ -286,20 +287,21 @@ def test_ddp_smoke():
 
     # Launch a short DDP training run
     tmpdir = tempfile.mkdtemp(prefix='florch_test_ddp_')
+    repo_root = osp.dirname(osp.dirname(osp.abspath(__file__)))
     try:
-        script = f"""\
-import sys; sys.path.insert(0, '.')
-import tempfile
+        script_path = osp.join(tmpdir, 'ddp_smoke.py')
+        with open(script_path, 'w') as f:
+            f.write(f"""\
+import sys; sys.path.insert(0, {repo_root!r})
 from examples.verify_features import VerifyJob, make_config
-config = make_config(steps=20, checkpoint_dir='{tmpdir}', multi_gpu=True)
+config = make_config(steps=20, checkpoint_dir={tmpdir!r}, multi_gpu=True)
 job = VerifyJob(config)
 job.train()
 print('DDP OK')
-"""
+""")
         result = subprocess.run(
-            ['torchrun', '--nproc_per_node=2', '-c', script],
-            capture_output=True, text=True, timeout=120,
-            cwd='/home/sarandi/rwth-home2/pose/pycharm/florch',
+            ['torchrun', '--nproc_per_node=2', script_path],
+            capture_output=True, text=True, timeout=300, cwd=repo_root,
         )
         if result.returncode != 0:
             raise AssertionError(f'DDP failed:\nstdout: {result.stdout}\nstderr: {result.stderr}')
