@@ -252,6 +252,12 @@ class RoundRobinStream:
     def seek(self, skip: int = 0) -> Iterator[Tuple[Callable, Tuple, Dict]]:
         """Seek all sub-streams and resume roundrobin from position."""
         effective_sizes = self._effective_sizes()
+        group_size = self.group_sample_size
+        if group_size and any(size % group_size != 0 for size in effective_sizes):
+            raise ValueError(
+                f'Round-robin sizes {effective_sizes} must be multiples of '
+                f'group_sample_size {group_size}, otherwise groups straddle sections'
+            )
         n_streams = len(self.sections)
         sub_streams = self._make_sub_streams()
 
@@ -351,6 +357,12 @@ def stream_to_loader(
         rank: Process rank for distributed training.
         world_size: Number of processes.
 
+    Each rank gets a contiguous piece of every stream's block of the global micro-batch
+    (of a MultiStream's children, or of the whole micro-batch for other streams). Each
+    block must divide by world_size. A stream with a ``group_sample_size`` attribute
+    (consecutive items that belong together, e.g. the views of one frame) must give
+    each rank whole groups: its per-rank share must be a multiple of that size.
+
     Returns:
         torchdata.nodes.Loader yielding batched, collated tensors.
     """
@@ -372,9 +384,17 @@ def stream_to_loader(
     if n_remaining is not None:
         stream_iter = itertools.islice(stream_iter, n_remaining)
 
-    # Distributed: take contiguous chunks to preserve mixing ratios
+    # Distributed: each stream's block of a global micro-batch is cut into world_size
+    # contiguous pieces, one per rank. Contiguous pieces keep runs of consecutive items
+    # together (e.g. the views of one multi-view frame), and cutting each block rather
+    # than the whole micro-batch gives every rank a share of every stream. The block
+    # sizes are checked for world_size == 1 too, so a configuration that would break
+    # groups on more GPUs already fails on one.
+    block_sizes = _rank_split_block_sizes(
+        stream, full_batch_size, grad_accum_steps, world_size
+    )
     if world_size > 1:
-        stream_iter = _batch_chunk(stream_iter, full_batch_size, rank, micro_batch_size)
+        stream_iter = _take_rank_pieces(stream_iter, block_sizes, rank, world_size)
 
     return function_calls_to_batched_torch_loader(
         stream_iter, micro_batch_size, n_workers=num_workers,
@@ -384,18 +404,54 @@ def stream_to_loader(
 # === Internal helpers ===
 
 
-def _batch_chunk(stream_iter, full_batch_size, rank, per_rank_batch_size):
-    """Yield contiguous chunks of each batch for distributed training.
+def _rank_split_block_sizes(stream, full_batch_size, grad_accum_steps, world_size):
+    """Return the stream block sizes of one global micro-batch, after checking that
+    every block divides into equal per-rank pieces made of whole groups."""
+    if isinstance(stream, MultiStream):
+        children, block_sizes = stream.streams, list(stream.micro_batch_sizes)
+    else:
+        children, block_sizes = [stream], [full_batch_size]
 
-    Preserves mixing ratios by giving each rank a contiguous slice of the
-    full batch rather than interleaving individual items.
+    if sum(block_sizes) != full_batch_size:
+        raise ValueError(
+            f'The stream block sizes {block_sizes} sum to {sum(block_sizes)}, but the '
+            f'global micro-batch has {full_batch_size} items'
+        )
+    for i, (child, size) in enumerate(zip(children, block_sizes)):
+        if size % world_size != 0:
+            raise ValueError(
+                f'Stream {i}: batch size {size * grad_accum_steps} must be divisible by '
+                f'grad_accum_steps * world_size = {grad_accum_steps} * {world_size}'
+            )
+        group_size = getattr(child, 'group_sample_size', None) or 1
+        if (size // world_size) % group_size != 0:
+            raise ValueError(
+                f'Stream {i}: each rank gets {size // world_size} items per micro-batch, '
+                f'which is not a multiple of the group size {group_size}'
+            )
+    return block_sizes
+
+
+def _take_rank_pieces(stream_iter, block_sizes, rank, world_size):
+    """Yield this rank's contiguous piece of each block of each global micro-batch.
+
+    An incomplete last micro-batch is dropped, so that all ranks get the same number
+    of items.
     """
-    offset = rank * per_rank_batch_size
+    full_batch_size = sum(block_sizes)
+    pieces = []
+    block_start = 0
+    for size in block_sizes:
+        share = size // world_size
+        pieces.append(slice(block_start + rank * share, block_start + (rank + 1) * share))
+        block_start += size
+
     while True:
-        batch = list(itertools.islice(stream_iter, full_batch_size))
-        if len(batch) < full_batch_size:
-            break
-        yield from batch[offset:offset + per_rank_batch_size]
+        chunk = list(itertools.islice(stream_iter, full_batch_size))
+        if len(chunk) < full_batch_size:
+            return
+        for piece in pieces:
+            yield from chunk[piece]
 
 
 _SEED_TAGS = {'shuffle': 0, 'item': 1, 'group': 2, 'sample': 3, 'section': 4, 'stream': 5}

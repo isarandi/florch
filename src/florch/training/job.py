@@ -195,6 +195,9 @@ class TrainingJob(abc.ABC):
                 )
                 self._initialized_single_gpu_fsdp = True
 
+        # rng differs per rank (for rank-local randomness); rng_common is identical on
+        # all ranks and seeds the data streams, which every rank must traverse in the
+        # same order for the per-rank split to partition each global batch.
         self.rng = np.random.Generator(
             np.random.PCG64(abs(hash((self.config.seed, self.rank))))
         )
@@ -524,7 +527,7 @@ class TrainingJob(abc.ABC):
     ):
         """Build a seekable DataStream over examples."""
         from ..streams import DataStream
-        seed = int(new_rng(self.rng).integers(0, 2**32))
+        seed = int(new_rng(self.rng_common).integers(0, 2**32))
         return DataStream(
             items=examples,
             load_fn=load_fn,
@@ -555,7 +558,7 @@ class TrainingJob(abc.ABC):
         """
         from ..streams import RoundRobinStream
         ga = self.config.grad_accum_steps
-        seed = int(new_rng(self.rng).integers(0, 2**32))
+        seed = int(new_rng(self.rng_common).integers(0, 2**32))
         return RoundRobinStream(
             sections=example_sections,
             sizes=roundrobin_sizes,
@@ -578,7 +581,7 @@ class TrainingJob(abc.ABC):
         ga = self.config.grad_accum_steps
         for b in batch_sizes:
             assert b % ga == 0, f'batch_size {b} not divisible by grad_accum_steps {ga}'
-        seed = int(new_rng(self.rng).integers(0, 2**32))
+        seed = int(new_rng(self.rng_common).integers(0, 2**32))
         return MultiStream(streams, [b // ga for b in batch_sizes], seed=seed)
 
     def stream_to_torch_loader_train(self, stream, batch_size):

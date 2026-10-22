@@ -1,4 +1,4 @@
-"""Determinism and resume of the streams; norm loss settings."""
+"""Determinism, resume and distributed splitting of the streams; norm loss settings."""
 
 import itertools
 import os
@@ -8,7 +8,7 @@ import sys
 import numpy as np
 import pytest
 
-from florch.streams import DataStream, MultiStream, RoundRobinStream
+from florch.streams import DataStream, MultiStream, RoundRobinStream, stream_to_loader
 
 
 def load_fn(item, rng=None, group_rng=None):
@@ -64,6 +64,149 @@ def test_order_is_identical_across_processes():
         )
         outputs.append(result.stdout)
     assert outputs[0] == outputs[1]
+
+
+def test_ranks_partition_each_global_batch():
+    """The ranks' micro-batches together form the global batch, and each rank gets
+    items of every source."""
+    world_size, micro = 2, 6
+    stream = MultiStream(
+        [DataStream([f'p{i}' for i in range(50)], load_fn, seed=1),
+         DataStream([f'k{i}' for i in range(50)], load_fn, seed=2)],
+        micro_batch_sizes=[8, 4], seed=0,
+    )
+    global_items = item_ids(iter(stream), 5 * world_size * micro)
+    per_rank = []
+    for rank in range(world_size):
+        loader_input = _loader_items(stream, micro, rank, world_size, n_batches=5)
+        per_rank.append(loader_input)
+
+    for b in range(5):
+        global_batch = global_items[b * world_size * micro:(b + 1) * world_size * micro]
+        rank_batches = [r[b * micro:(b + 1) * micro] for r in per_rank]
+        assert sorted(sum(rank_batches, [])) == sorted(global_batch)
+        for batch in rank_batches:
+            assert any(x.startswith('p') for x in batch)
+            assert any(x.startswith('k') for x in batch)
+
+
+def make_grouped_multistream(group_size=4):
+    """A single-view stream next to a multi-view stream whose items are views of frames.
+
+    Item names are '<frame>/<view>', so the frame of each item can be read back.
+    """
+    frames = [[f'f{i}/v{v}' for v in range(6)] for i in range(40)]
+    multiview = RoundRobinStream(
+        sections=[frames[:25], frames[25:]],
+        sizes=[2 * group_size, group_size], load_fn=load_fn, seed=7,
+        group_sample_size=group_size,
+    )
+    single = DataStream([f's{i}' for i in range(30)], load_fn, seed=8)
+    return MultiStream([single, multiview], micro_batch_sizes=[8, 16], seed=9)
+
+
+@pytest.mark.parametrize('world_size', [1, 2, 4])
+def test_contiguous_rank_split_keeps_groups_whole(world_size):
+    group_size, n_batches = 4, 6
+    stream = make_grouped_multistream(group_size)
+    full = 8 + 16
+    micro = full // world_size
+    global_items = item_ids(iter(stream), n_batches * full)
+    per_rank = [
+        _loader_items(stream, micro, rank, world_size, n_batches)
+        for rank in range(world_size)
+    ]
+
+    for b in range(n_batches):
+        global_batch = global_items[b * full:(b + 1) * full]
+        single_block, mv_block = global_batch[:8], global_batch[8:]
+        rank_batches = [r[b * micro:(b + 1) * micro] for r in per_rank]
+        for rank, batch in enumerate(rank_batches):
+            # Contiguous pieces of each stream's block, in stream order.
+            s_share, mv_share = 8 // world_size, 16 // world_size
+            assert batch[:s_share] == single_block[rank * s_share:(rank + 1) * s_share]
+            assert batch[s_share:] == mv_block[rank * mv_share:(rank + 1) * mv_share]
+            mv_items = batch[s_share:]
+            for g in range(0, len(mv_items), group_size):
+                frames = {x.split('/')[0] for x in mv_items[g:g + group_size]}
+                assert len(frames) == 1, (rank, mv_items)
+        assert sorted(sum(rank_batches, [])) == sorted(global_batch)
+
+
+def test_world_size_one_is_unchanged():
+    stream = make_grouped_multistream()
+    assert _loader_items(stream, 24, 0, 1, 5) == item_ids(iter(stream), 5 * 24)
+
+
+def test_rank_split_resumes_like_a_fresh_run():
+    stream = make_grouped_multistream()
+    world_size, micro = 2, 12
+    full_run = _loader_items(stream, micro, 1, world_size, n_batches=8)
+    resumed = _loader_items(
+        stream, micro, 1, world_size, n_batches=5, completed_steps=3
+    )
+    assert resumed == full_run[3 * micro:]
+
+
+def test_block_not_divisible_by_world_size_raises():
+    stream = MultiStream(
+        [DataStream([f'p{i}' for i in range(50)], load_fn, seed=1),
+         DataStream([f'k{i}' for i in range(50)], load_fn, seed=2)],
+        micro_batch_sizes=[7, 5], seed=0,
+    )
+    with pytest.raises(ValueError, match='grad_accum_steps \\* world_size'):
+        _loader_items(stream, 6, 0, 2, n_batches=1)
+
+
+def test_rank_share_not_whole_groups_raises():
+    # 16 multi-view items per micro-batch on 8 ranks: 2 per rank, half a group.
+    stream = make_grouped_multistream(group_size=4)
+    with pytest.raises(ValueError, match='group size 4'):
+        _loader_items(stream, 3, 0, 8, n_batches=1)
+    # The same rule applies to a plain grouped stream, as used by the test loader.
+    grouped = DataStream(
+        [[f'g{i}_{v}' for v in range(4)] for i in range(10)], load_fn, seed=5,
+        group_sample_size=4,
+    )
+    with pytest.raises(ValueError, match='group size 4'):
+        _loader_items(grouped, 2, 0, 2, n_batches=1)
+
+
+def test_block_sizes_must_match_micro_batch():
+    stream = make_grouped_multistream()
+    with pytest.raises(ValueError, match='sum to 24'):
+        _loader_items(stream, 10, 0, 2, n_batches=1)
+
+
+def test_roundrobin_sizes_must_be_whole_groups():
+    stream = RoundRobinStream(
+        sections=[[[f'a{i}_{v}' for v in range(4)] for i in range(5)]],
+        sizes=[6], load_fn=load_fn, group_sample_size=4,
+    )
+    with pytest.raises(ValueError, match='multiples of group_sample_size'):
+        next(iter(stream))
+
+
+def _loader_items(stream, micro, rank, world_size, n_batches, completed_steps=0):
+    """The items stream_to_loader would feed to the batcher on this rank."""
+    import florch.data_loading
+
+    captured = []
+
+    def fake_loader(stream_iter, batch_size, n_workers=None):
+        assert batch_size == micro
+        captured.extend(item_ids(stream_iter, n_batches * micro))
+
+    original = florch.data_loading.function_calls_to_batched_torch_loader
+    florch.data_loading.function_calls_to_batched_torch_loader = fake_loader
+    try:
+        stream_to_loader(
+            stream, micro_batch_size=micro, rank=rank, world_size=world_size,
+            completed_steps=completed_steps,
+        )
+    finally:
+        florch.data_loading.function_calls_to_batched_torch_loader = original
+    return captured
 
 
 def test_norm_loss_hooks_cover_batch_renorm():
