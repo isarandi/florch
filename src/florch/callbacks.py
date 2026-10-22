@@ -5,15 +5,13 @@ import florch.layers.batch_renorm
 import simplepyutils as spu
 import torch.distributed
 import torch.nn as nn
-import numpy as np
-
 if TYPE_CHECKING:
-    from florch import ModelTrainer
+    from florch.training.job import TrainingJob
 
 
 class Callback:
     def __init__(self):
-        self.trainer: Optional['ModelTrainer'] = None
+        self.job: Optional['TrainingJob'] = None
         self.device = None
 
     def on_train_batch_begin(self, step: int):
@@ -115,7 +113,7 @@ class SyncBNStats(Callback):
         super().__init__()
 
     def on_train_batch_end(self, step, logs):
-        self.trainer.model.apply(self.sync_running_stats)
+        self.job.model.apply(self.sync_running_stats)
 
     def needs_to_run_on_all_devices(self):
         return True
@@ -169,12 +167,12 @@ class SwitchToInferenceModeCallback(Callback):
     def on_train_batch_end(self, batch, logs):
         if (
             batch >= self.step_to_switch_to_inference_mode
-            and not self.trainer.train_in_inference_mode
+            and not self.job.train_in_inference_mode
         ):
             self.ckpt_manager.save(
                 batch + 1, name="ckpt_before_switch_to_inference_mode", check_interval=False
             )
-            self.trainer.train_in_inference_mode = True
+            self.job.train_in_inference_mode = True
 
     def needs_to_run_on_all_devices(self):
         return True
@@ -192,7 +190,7 @@ class ConvMinMaxNormConstraint(Callback):
 
     def on_train_batch_end(self, step, logs):
         with torch.no_grad():
-            self.trainer.model.apply(self.apply_constraint)
+            self.job.model.apply(self.apply_constraint)
 
     def apply_constraint(self, module: nn.Module):
         if isinstance(module, nn.Conv2d) and module.weight is not None:
@@ -283,26 +281,19 @@ class TransitionBatchNorm(Callback):
         self.transition_end = transition_end
 
     def on_train_batch_begin(self, step: int):
-        blend = self.smootherstep(
-            step, self.transition_start, self.transition_end
+        from florch.util.misc import smootherstep
+        blend = smootherstep(
+            step, self.transition_start, x1=self.transition_end
         )
-        for m in self.trainer.model.modules():
+        for m in self.job.model.modules():
             if isinstance(m, florch.layers.TransitionBatchNorm2d):
                 m.blend = blend
 
         if step == self.transition_start:
-            for m in self.trainer.model.modules():
+            for m in self.job.model.modules():
                 if isinstance(m, florch.layers.TransitionBatchNorm2d):
                     m.weight.requires_grad_(False)
                     m.bias.requires_grad_(False)
-
-
-    @staticmethod
-    def smootherstep(x, x0=0, x1=None, length=None):
-        if length is None:
-            length = x1 - x0
-        y = np.clip((x - x0) / length, 0, 1)
-        return y * y * y * (y * (y * 6.0 - 15.0) + 10.0)
 
 
     def needs_to_run_on_all_devices(self):

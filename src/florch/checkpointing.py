@@ -96,6 +96,8 @@ class CheckpointManager:
 
 def latest_checkpoint(directory):
     """Retrieve the latest checkpoint in a directory."""
+    if directory is None or not osp.isdir(directory):
+        return None
     checkpoints = sorted(
         [
             osp.join(directory, ckpt)

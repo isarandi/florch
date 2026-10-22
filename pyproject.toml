@@ -23,6 +23,7 @@ dependencies = [
     'torch',
     'torchdata',
     'more-itertools',
+    'scipy',
     'simplepyutils',
 ]
 

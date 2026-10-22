@@ -1,5 +1,7 @@
-from florch.util.easydict import EasyDict
+import numpy as np
 import torch
+
+from .easydict import EasyDict
 
 
 def attrdict2dict_nested(elem):
@@ -22,6 +24,21 @@ def dict2attrdict_nested(elem):
         return [dict2attrdict_nested(e) for e in elem]
     else:
         return elem
+
+
+def smootherstep(x, x0=0, x1=None, length=None):
+    """Ken Perlin's smootherstep: 6t^5 - 15t^4 + 10t^3."""
+    if length is None:
+        length = x1 - x0
+    y = np.clip((x - x0) / length, 0, 1)
+    return y * y * y * (y * (y * 6.0 - 15.0) + 10.0)
+
+
+def new_rng(rng, advance_delta=0):
+    """Derive a new independent RNG from an existing one."""
+    gen = np.random.PCG64(rng.integers(0, 2**32 - 1))
+    gen.advance(advance_delta)
+    return np.random.Generator(gen)
 
 
 def to_device_nested(elem, device):
