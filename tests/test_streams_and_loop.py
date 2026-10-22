@@ -1,4 +1,4 @@
-"""Determinism and resume of the streams."""
+"""Determinism and resume of the streams; norm loss settings."""
 
 import itertools
 import os
@@ -63,3 +63,10 @@ def test_order_is_identical_across_processes():
         )
         outputs.append(result.stdout)
     assert outputs[0] == outputs[1]
+
+
+def test_norm_loss_hooks_cover_batch_renorm():
+    from florch.layers import BatchRenorm2d
+    from florch.training.loop import NORM_LAYER_TYPES
+
+    assert isinstance(BatchRenorm2d(4), NORM_LAYER_TYPES)

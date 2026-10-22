@@ -14,6 +14,7 @@ from simplepyutils import logger
 
 from .distributed import sync_metric
 from ..exceptions import UnexpectedValueDuringTrainingError
+from ..layers.batch_renorm import _BatchRenorm
 from ..util.misc import smootherstep, to_device_nested
 
 
@@ -29,6 +30,10 @@ class Timer:
         timespan = self.timestamps[-1] - self.timestamps[0]
         done_items = len(self.timestamps) - 1
         return np.float32(done_items / timespan)
+
+
+# Normalization layers whose input/output mismatch the norm loss regularizes.
+NORM_LAYER_TYPES = (nn.GroupNorm, nn.LayerNorm, nn.BatchNorm2d, _BatchRenorm)
 
 
 def make_norm_hook(norm_losses: List[torch.Tensor]):
@@ -96,7 +101,7 @@ def fit_epochless(job):
     handles = []
     if config.norm_loss_factor:
         for m in job.model.modules():
-            if isinstance(m, (nn.GroupNorm, nn.LayerNorm, nn.BatchNorm2d)):
+            if isinstance(m, NORM_LAYER_TYPES):
                 handles.append(m.register_forward_hook(make_norm_hook(norm_losses)))
 
     prepare_inputs = trainer._prepare_inputs
