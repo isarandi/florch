@@ -108,14 +108,12 @@ class TrainingConfig:
     norm_loss_factor: float = 0.0
     """Weight for norm layer regularization loss."""
 
-    # NOTE: norm_loss_ramp_steps is the absolute step at which the smootherstep ramp
-    # ENDS (x1), not a duration - it must be larger than norm_loss_start_step.
-
     norm_loss_start_step: int = 1000
     """Step to start norm loss regularization."""
 
     norm_loss_ramp_steps: int = 4000
-    """Steps to ramp up norm loss from 0 to full weight."""
+    """Length of the ramp (in steps, counted from norm_loss_start_step) over which the
+    norm loss weight rises from 0 to norm_loss_factor along a smootherstep curve."""
 
     # === Validation ===
     validate_period: int = 0

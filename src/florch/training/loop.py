@@ -151,7 +151,9 @@ def fit_epochless(job):
         if config.norm_loss_factor and norm_losses:
             losses['norm_loss'] = sum(norm_losses) / len(norm_losses)
             norm_loss_weight = (
-                smootherstep(step, config.norm_loss_start_step, config.norm_loss_ramp_steps)
+                smootherstep(
+                    step, config.norm_loss_start_step, length=config.norm_loss_ramp_steps
+                )
                 * config.norm_loss_factor
             )
             lossval = (

@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 
+import numpy as np
 import pytest
 
 from florch.streams import DataStream, MultiStream, RoundRobinStream
@@ -70,3 +71,14 @@ def test_norm_loss_hooks_cover_batch_renorm():
     from florch.training.loop import NORM_LAYER_TYPES
 
     assert isinstance(BatchRenorm2d(4), NORM_LAYER_TYPES)
+
+
+def test_norm_loss_ramp_is_a_length():
+    from florch.util.misc import smootherstep
+
+    start, length = 1000, 4000
+    assert smootherstep(start, start, length=length) == 0
+    assert smootherstep(start + length / 2, start, length=length) == pytest.approx(0.5)
+    assert smootherstep(start + length, start, length=length) == 1
+    assert smootherstep(start - 1, start, length=length) == 0
+    assert np.isclose(smootherstep(start + length + 1, start, length=length), 1)
