@@ -588,6 +588,7 @@ class TrainingJob(abc.ABC):
         return stream_to_loader(
             stream,
             micro_batch_size=self._per_rank_size(batch_size, self.config.grad_accum_steps),
+            num_workers=self.config.workers,
             completed_steps=self._n_completed_steps_at_start,
             total_steps=self.config.training_steps,
             grad_accum_steps=self.config.grad_accum_steps,
@@ -603,6 +604,7 @@ class TrainingJob(abc.ABC):
         from ..streams import stream_to_loader
         return stream_to_loader(
             stream, micro_batch_size=self._per_rank_size(batch_size, 1),
+            num_workers=self.config.workers,
             rank=self.rank, world_size=self.world_size,
         )
 
