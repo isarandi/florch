@@ -90,7 +90,6 @@ class TrainingJob(abc.ABC):
         self.rng_common = None
 
         # Training loop state
-        self._train_counter = 0
         self.train_in_inference_mode = False
 
         # Determine completed steps
@@ -108,7 +107,7 @@ class TrainingJob(abc.ABC):
     @property
     def adjusted_train_counter(self) -> int:
         """Training step counter adjusted for gradient accumulation."""
-        return self.trainer.adjusted_train_counter
+        return int(self.trainer.adjusted_train_counter)
 
     # === Methods called by the training loop ===
 
