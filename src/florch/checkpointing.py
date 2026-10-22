@@ -1,7 +1,9 @@
 import os
 import os.path as osp
+import time
 
 import torch
+from simplepyutils import logger
 
 
 class CheckpointManager:
@@ -26,6 +28,7 @@ class CheckpointManager:
         self.checkpoints = sorted(self._get_existing_checkpoints())
         self.checkpoint_interval = checkpoint_interval
         self.truncate_before_delete = truncate_before_delete
+        self._consecutive_failed_saves = 0
 
     def _get_existing_checkpoints(self):
         """Retrieve existing checkpoint paths sorted by modification time."""
@@ -33,7 +36,7 @@ class CheckpointManager:
             [
                 osp.join(self.directory, ckpt)
                 for ckpt in os.listdir(self.directory)
-                if ckpt.endswith(".pth")
+                if ckpt.endswith(".pth") and os.stat(osp.join(self.directory, ckpt)).st_size > 0
             ],
             key=osp.getmtime,
         )
@@ -59,15 +62,41 @@ class CheckpointManager:
             model_state_dict = self.model.state_dict()
             optimizer_state_dict = self.optimizer.state_dict()
 
-        torch.save(
-            {
-                'n_completed_steps': step,
-                'model_state_dict': model_state_dict,
-                'optimizer_state_dict': optimizer_state_dict,
-                'grad_clipper_state_dict': self.grad_clipper.state_dict(),
-            },
-            checkpoint_path,
-        )
+        state = {
+            'n_completed_steps': step,
+            'model_state_dict': model_state_dict,
+            'optimizer_state_dict': optimizer_state_dict,
+            'grad_clipper_state_dict': self.grad_clipper.state_dict(),
+        }
+        # Write to a temp file and rename, so a failed save (e.g. transient Lustre I/O
+        # error) never leaves a truncated .pth behind as the "latest" checkpoint. Retry a
+        # few times; a periodic checkpoint that still fails is not worth killing the run.
+        tmp_path = checkpoint_path + '.tmp'
+        for i_attempt in range(3):
+            try:
+                torch.save(state, tmp_path)
+                os.replace(tmp_path, checkpoint_path)
+                self._consecutive_failed_saves = 0
+                break
+            except (OSError, RuntimeError) as e:
+                logger.warning(f'Checkpoint save attempt {i_attempt + 1} failed: {e}')
+                try:
+                    os.remove(tmp_path)
+                except OSError:
+                    pass
+                time.sleep(10)
+        else:
+            # A transient blip (e.g. group quota briefly exceeded) should not kill a
+            # long run, but persistently failing saves mean training can no longer be
+            # persisted at all - then burning compute is pointless: stop.
+            self._consecutive_failed_saves += 1
+            logger.warning(f'Giving up on saving checkpoint {checkpoint_path}.')
+            if self._consecutive_failed_saves >= 3:
+                raise RuntimeError(
+                    f'{self._consecutive_failed_saves} consecutive checkpoint saves '
+                    'failed - storage appears persistently unavailable.'
+                )
+            return
 
         self.checkpoints.append(checkpoint_path)
         self.remove_old_checkpoints()
@@ -102,7 +131,9 @@ def latest_checkpoint(directory):
         [
             osp.join(directory, ckpt)
             for ckpt in os.listdir(directory)
-            if osp.basename(ckpt).startswith('ckpt-') and ckpt.endswith(".pth")
+            if osp.basename(ckpt).startswith('ckpt-')
+            and ckpt.endswith(".pth")
+            and os.stat(osp.join(directory, ckpt)).st_size > 0
         ],
     )
     return checkpoints[-1] if checkpoints else None
