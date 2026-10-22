@@ -220,6 +220,11 @@ class TrainingJob(abc.ABC):
             self.validation_steps = result.val_steps
         else:
             self.data_train, self.data_val, self.validation_steps = result
+        if self.data_val is not None:
+            logger.warning(
+                "build_data() returned validation data, but the training loop does not "
+                "run validation yet; it is ignored."
+            )
         self.data_train = more_itertools.peekable(self.data_train)
         self.data_train.peek()
         logger.info("Data built.")
