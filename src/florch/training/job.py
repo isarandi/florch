@@ -19,6 +19,10 @@ from .distributed import init_distributed
 from .loop import fit_epochless
 
 
+# Clipping history value for checkpoints that have no clipper state.
+INITIAL_GRAD_NORM = 0.7
+
+
 class DataLoaders(NamedTuple):
     """Return type for build_data()."""
     train: object
@@ -118,7 +122,11 @@ class TrainingJob(abc.ABC):
         Default: all parameters as one group.
 
         Returns:
-            List of parameter iterables, one per clipping group.
+            Either a dict mapping a group name to its parameter iterable, e.g.
+            ``{'backbone': ..., 'head': ...}`` (gradient norms are then logged as
+            ``gradnorm_backbone`` and ``gradnorm_head``), or a list of parameter
+            iterables (logged as ``gradnorm_0``, ``gradnorm_1``, ...). Each group has
+            its own clipping history.
         """
         return [self.model.parameters()]
 
@@ -471,9 +479,21 @@ class TrainingJob(abc.ABC):
             except Exception as e:
                 logger.warning(f"Failed to load optimizer state dict: {e}")
 
-        # Load gradient clipper
-        if self.grad_clipper is not None and 'grad_clipper_state_dict' in checkpoint:
-            self.grad_clipper.load_state_dict(checkpoint['grad_clipper_state_dict'])
+        # Load gradient clipper. A checkpoint without clipper state (e.g. pretrained
+        # weights) starts every group's history at 0.7, so that the first steps after
+        # loading are already clipped instead of running unclipped until a history
+        # has built up.
+        if self.grad_clipper is not None:
+            if 'grad_clipper_state_dict' in checkpoint:
+                self.grad_clipper.load_state_dict(checkpoint['grad_clipper_state_dict'])
+            else:
+                n_groups = len(self.get_grad_clip_param_groups())
+                self.grad_clipper.load_state_dict({
+                    'histories': [
+                        [INITIAL_GRAD_NORM] * self.config.clip_grad_norm_histsize
+                        for _ in range(n_groups)
+                    ]
+                })
 
     def restore(self):
         """Restore model without training (for inference)."""

@@ -177,10 +177,13 @@ def fit_epochless(job):
 
         # Optimizer step
         grad_norms = []
+        group_names = []
         if i_substep % config.grad_accum_steps == config.grad_accum_steps - 1:
             if grad_clipper.enabled:
                 scaler.unscale_(optimizer)
-                param_groups = job.get_grad_clip_param_groups()
+                group_names, param_groups = _named_clip_groups(
+                    job.get_grad_clip_param_groups()
+                )
                 grad_norms, grad_norm_factors = grad_clipper.clip(*param_groups)
                 # NaN factors (non-finite gradients) must skip, not step.
                 do_step = all(f < grad_clipper.skip_factor for f in grad_norm_factors)
@@ -225,8 +228,8 @@ def fit_epochless(job):
                 synced_metrics["step_per_sec"] = timer.update_and_get_speed()
                 synced_metrics["loss_scale"] = scaler.get_scale()
 
-                for gi, gn in enumerate(grad_norms):
-                    synced_metrics[f"gradnorm_{gi}"] = gn
+                for name, gn in zip(group_names, grad_norms):
+                    synced_metrics[f"gradnorm_{name}"] = gn
 
                 for cb in callbacks:
                     if cb.needs_to_run_on_all_devices() or rank == 0:
@@ -245,3 +248,15 @@ def fit_epochless(job):
 
     for handle in handles:
         handle.remove()
+
+
+def _named_clip_groups(groups):
+    """Split the result of get_grad_clip_param_groups() into (names, param groups).
+
+    A dict gives named groups (logged as gradnorm_<name>); a list gives groups
+    numbered from 0.
+    """
+    if isinstance(groups, dict):
+        return list(groups.keys()), list(groups.values())
+    groups = list(groups)
+    return list(range(len(groups))), groups

@@ -225,3 +225,62 @@ def test_norm_loss_ramp_is_a_length():
     assert smootherstep(start + length, start, length=length) == 1
     assert smootherstep(start - 1, start, length=length) == 0
     assert np.isclose(smootherstep(start + length + 1, start, length=length), 1)
+
+
+def test_grad_norm_keys_use_group_names():
+    from florch.training.loop import _named_clip_groups
+
+    backbone, head = [object()], [object()]
+    assert _named_clip_groups({'backbone': backbone, 'head': head}) == (
+        ['backbone', 'head'], [backbone, head]
+    )
+    assert _named_clip_groups([backbone, head]) == ([0, 1], [backbone, head])
+
+
+def test_checkpoint_without_clipper_state_starts_histories_at_0_7(tmp_path):
+    import torch
+
+    from florch import TrainingConfig
+    from florch.grad_clipping import AdaptiveGradientClipper
+    from florch.training.job import TrainingJob
+
+    class Job(TrainingJob):
+        def build_data(self):
+            raise NotImplementedError
+
+        def build_model(self):
+            model = torch.nn.Sequential(torch.nn.Linear(2, 3), torch.nn.Linear(3, 1))
+            model.backbone, model.head = model[0], model[1]
+            return model
+
+        def build_trainer(self, model):
+            raise NotImplementedError
+
+        def build_optimizer(self):
+            raise NotImplementedError
+
+        def get_grad_clip_param_groups(self):
+            return {
+                'backbone': self.model.backbone.parameters(),
+                'head': self.model.head.parameters(),
+            }
+
+    ckpt_path = tmp_path / 'weights.pth'
+    torch.save({'model_state_dict': Job.build_model(None).state_dict()}, ckpt_path)
+    config = TrainingConfig(
+        training_steps=10, init_path=str(ckpt_path), clip_grad_norm_factor=2.0,
+        clip_grad_norm_histsize=5, multi_gpu=False,
+    )
+    job = Job(config)
+    job.restore()
+    assert isinstance(job.grad_clipper, AdaptiveGradientClipper)
+    assert [list(h) for h in job.grad_clipper.histories] == [[0.7] * 5, [0.7] * 5]
+
+    # A checkpoint with clipper state keeps its own histories.
+    torch.save({
+        'model_state_dict': job.model.state_dict(),
+        'grad_clipper_state_dict': {'histories': [[1.5], [2.5]]},
+    }, ckpt_path)
+    job = Job(config)
+    job.restore()
+    assert [list(h) for h in job.grad_clipper.histories] == [[1.5], [2.5]]
