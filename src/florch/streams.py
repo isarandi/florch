@@ -186,7 +186,14 @@ class RoundRobinStream:
         shuffle: Whether to shuffle within each section.
         extra_args: Additional args for load_fn.
         extra_kwargs: Additional kwargs for load_fn.
-        grad_accum_steps: If > 1, sizes are redistributed for balanced micro-batches.
+        micro_batch_size: How many items this stream contributes to each micro-batch.
+            If given, the sizes are treated as relative weights and redistributed so
+            that every micro-batch receives (nearly) the same mix of sections. If None,
+            the raw sizes are cycled as they are, which keeps each section's count
+            intact (e.g. whole multi-view groups when sizes are multiples of
+            group_sample_size).
+        grad_accum_steps: Gradient accumulation steps; only used together with
+            micro_batch_size.
         group_sample_size: Passed to sub-DataStreams.
     """
 
@@ -199,6 +206,7 @@ class RoundRobinStream:
         shuffle: bool = True,
         extra_args: Tuple = (),
         extra_kwargs: Optional[Dict] = None,
+        micro_batch_size: Optional[int] = None,
         grad_accum_steps: int = 1,
         group_sample_size: Optional[int] = None,
     ):
@@ -209,17 +217,19 @@ class RoundRobinStream:
         self.shuffle = shuffle
         self.extra_args = extra_args
         self.extra_kwargs = extra_kwargs or {}
+        self.micro_batch_size = micro_batch_size
         self.grad_accum_steps = grad_accum_steps
         self.group_sample_size = group_sample_size
 
     def _effective_sizes(self) -> List[int]:
-        if self.grad_accum_steps <= 1:
+        if self.micro_batch_size is None:
             return self.raw_sizes
         from florch.util.distribute_batch import distribute_batch
+        # Allocating over 4 accumulation windows (not 1) lets each micro-batch get
+        # its share even when a section's share per window is fractional. The
+        # factor is part of the schedule: changing it changes the data order.
         return distribute_batch(
-            self.raw_sizes,
-            sum(self.raw_sizes) // self.grad_accum_steps,
-            self.grad_accum_steps,
+            self.raw_sizes, self.micro_batch_size, 4 * self.grad_accum_steps
         )
 
     def _make_sub_streams(self):

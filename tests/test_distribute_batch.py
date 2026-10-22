@@ -145,7 +145,8 @@ def test_stream_samples_every_section_and_resumes_identically():
 
     sections = [[f'{name}{i}' for i in range(50)] for name in 'abc']
     stream = RoundRobinStream(
-        sections=sections, sizes=[14, 6, 2], load_fn=load_fn, seed=7, grad_accum_steps=8
+        sections=sections, sizes=[14, 6, 2], load_fn=load_fn, seed=7,
+        micro_batch_size=2, grad_accum_steps=8,
     )
 
     items = [args[0] for _, args, _ in itertools.islice(iter(stream), 400)]

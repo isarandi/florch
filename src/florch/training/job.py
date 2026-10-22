@@ -531,7 +531,7 @@ class TrainingJob(abc.ABC):
 
     def build_roundrobin_stream(
         self, example_sections, load_fn, extra_args=(),
-        roundrobin_sizes=None, group_sample_size=None,
+        roundrobin_sizes=None, batch_size=None, group_sample_size=None,
     ):
         """Build a seekable RoundRobinStream over multiple dataset sections.
 
@@ -540,10 +540,16 @@ class TrainingJob(abc.ABC):
             load_fn: Function to load a single example.
             extra_args: Extra arguments passed to load_fn.
             roundrobin_sizes: Number of examples per section in each round-robin cycle.
+            batch_size: This stream's share of the global batch (before splitting for
+                gradient accumulation), i.e. the value later passed to merge_streams.
+                If given, roundrobin_sizes are relative weights, redistributed so that
+                every micro-batch gets nearly the same section mix. If None, the sizes
+                are cycled unchanged, which keeps multi-view groups intact.
             group_sample_size: If set, samples are drawn in groups of this size
                 (e.g. for multi-view batches).
         """
         from ..streams import RoundRobinStream
+        ga = self.config.grad_accum_steps
         seed = int(new_rng(self.rng).integers(0, 2**32))
         return RoundRobinStream(
             sections=example_sections,
@@ -551,7 +557,8 @@ class TrainingJob(abc.ABC):
             load_fn=load_fn,
             seed=seed,
             extra_args=extra_args,
-            grad_accum_steps=self.config.grad_accum_steps,
+            micro_batch_size=batch_size // ga if batch_size is not None else None,
+            grad_accum_steps=ga,
             group_sample_size=group_sample_size,
         )
 
