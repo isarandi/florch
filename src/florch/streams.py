@@ -398,9 +398,19 @@ def _batch_chunk(stream_iter, full_batch_size, rank, per_rank_batch_size):
         yield from batch[offset:offset + per_rank_batch_size]
 
 
-def _derive_seed(parent_seed: int, *parts) -> int:
-    """Derive a deterministic child seed from a parent seed and identifiers."""
-    return abs(hash((parent_seed, *parts)))
+_SEED_TAGS = {'shuffle': 0, 'item': 1, 'group': 2, 'sample': 3, 'section': 4, 'stream': 5}
+
+
+def _derive_seed(parent_seed: int, tag: str, *indices: int) -> int:
+    """Derive a deterministic child seed from a parent seed, a tag and indices.
+
+    Uses SeedSequence spawn keys rather than Python's hash(), because string hashes
+    are randomized per process (PYTHONHASHSEED), which would make shuffling differ
+    between ranks and between a run and its resume. The spawn key keeps the tag and
+    indices as separate words, so different (tag, indices) never collide by padding.
+    """
+    ss = np.random.SeedSequence(parent_seed, spawn_key=(_SEED_TAGS[tag], *indices))
+    return int(ss.generate_state(1, np.uint64)[0])
 
 
 def _with_seed(stream, seed: int):
