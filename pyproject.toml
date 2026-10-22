@@ -36,6 +36,9 @@ classifiers = [
     "Operating System :: POSIX :: Linux"
 ]
 
+[project.optional-dependencies]
+barecat = ['barecat']
+
 
 [project.urls]
 Homepage = "https://github.com/isarandi/florch"
