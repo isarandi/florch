@@ -579,13 +579,15 @@ class TrainingJob(abc.ABC):
     def stream_to_torch_loader_train(self, stream, batch_size):
         """Convert a stream to a batched torch loader for training.
 
-        batch_size is the TOTAL batch size (before grad accumulation splitting).
-        It is divided by grad_accum_steps internally to get per-substep size.
+        batch_size is the GLOBAL batch size per optimizer step: summed over all
+        ranks, before splitting for gradient accumulation. It is divided by
+        grad_accum_steps and by the number of ranks to get each rank's micro-batch,
+        so the same batch_size trains with the same global batch on any GPU count.
         """
         from ..streams import stream_to_loader
         return stream_to_loader(
             stream,
-            micro_batch_size=batch_size // self.config.grad_accum_steps,
+            micro_batch_size=self._per_rank_size(batch_size, self.config.grad_accum_steps),
             completed_steps=self._n_completed_steps_at_start,
             total_steps=self.config.training_steps,
             grad_accum_steps=self.config.grad_accum_steps,
@@ -594,12 +596,25 @@ class TrainingJob(abc.ABC):
         )
 
     def stream_to_torch_loader_test(self, stream, batch_size):
-        """Convert a stream to a batched torch loader for validation."""
+        """Convert a stream to a batched torch loader for validation.
+
+        batch_size is global (summed over all ranks), as for training.
+        """
         from ..streams import stream_to_loader
         return stream_to_loader(
-            stream, micro_batch_size=batch_size,
+            stream, micro_batch_size=self._per_rank_size(batch_size, 1),
             rank=self.rank, world_size=self.world_size,
         )
+
+    def _per_rank_size(self, batch_size, n_substeps):
+        """Split a global batch size into a per-rank, per-substep micro-batch size."""
+        divisor = n_substeps * self.world_size
+        if batch_size % divisor != 0:
+            raise ValueError(
+                f'Batch size {batch_size} must be divisible by grad_accum_steps * '
+                f'world_size = {n_substeps} * {self.world_size}'
+            )
+        return batch_size // divisor
 
     def merge_streams_to_torch_loader_train(self, streams, batch_sizes):
         """Merge streams and convert to a training loader in one call."""
