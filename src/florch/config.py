@@ -101,7 +101,8 @@ class TrainingConfig:
 
     clip_grad_norm_skip_factor: float = 100.0
     """Steps with gradient norm above skip_factor * clip threshold are skipped
-    entirely and excluded from the norm history."""
+    entirely (no optimizer update). Their norms still enter the clipping history;
+    only non-finite norms are excluded from it."""
 
     # === Regularization ===
     norm_loss_factor: float = 0.0

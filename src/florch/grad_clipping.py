@@ -25,9 +25,9 @@ class AdaptiveGradientClipper:
         factor: Multiplier applied to the quantile-based norm to get the
             final clipping threshold. None = no clipping.
         skip_factor: Norms above skip_factor * clip_norm are treated as outliers:
-            the training loop skips such steps, and they are excluded from the
-            history so that a sustained spike burst cannot inflate the threshold
-            and thereby disarm the clipping.
+            the training loop skips the optimizer update for such steps. Their
+            norms still enter the history (so the threshold can follow a genuine
+            change in gradient scale); only non-finite norms are excluded.
     """
 
     def __init__(
